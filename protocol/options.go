@@ -1,14 +1,14 @@
 package protocol
 
 import (
-	"github.com/duo-labs/webauthn/protocol/webauthncose"
+	"github.com/Gaukas/webauthn/protocol/webauthncose"
 )
 
-type CredentialCreation struct {
+type CredentialCreationOptions struct {
 	Response PublicKeyCredentialCreationOptions `json:"publicKey"`
 }
 
-type CredentialAssertion struct {
+type CredentialRequestOptions struct {
 	Response PublicKeyCredentialRequestOptions `json:"publicKey"`
 }
 

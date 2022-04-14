@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/duo-labs/webauthn/metadata"
+	"github.com/Gaukas/webauthn/metadata"
 
 	jwt "github.com/golang-jwt/jwt/v4"
 	"github.com/mitchellh/mapstructure"
@@ -17,7 +17,7 @@ import (
 var safetyNetAttestationKey = "android-safetynet"
 
 func init() {
-	RegisterAttestationFormat(safetyNetAttestationKey, verifySafetyNetFormat)
+	RegisterAttestationFormat(safetyNetAttestationKey, VerifySafetyNetFormat)
 }
 
 type SafetyNetResponse struct {
@@ -39,7 +39,7 @@ type SafetyNetResponse struct {
 //  some statements about the health of the platform and the identity of the calling application. This attestation does not
 // provide information regarding provenance of the authenticator and its associated data. Therefore platform-provided
 // authenticators SHOULD make use of the Android Key Attestation when available, even if the SafetyNet API is also present.
-func verifySafetyNetFormat(att AttestationObject, clientDataHash []byte) (string, []interface{}, error) {
+func VerifySafetyNetFormat(att AttestationObject, clientDataHash []byte) (string, []interface{}, error) {
 	// The syntax of an Android Attestation statement is defined as follows:
 	//     $$attStmtType //= (
 	//                           fmt: "android-safetynet",

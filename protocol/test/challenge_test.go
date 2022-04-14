@@ -1,26 +1,28 @@
-package protocol
+package protocol_test
 
 import (
 	"encoding/base64"
 	"reflect"
 	"testing"
+
+	"github.com/Gaukas/webauthn/protocol"
 )
 
 func TestCreateChallenge(t *testing.T) {
 	tests := []struct {
 		name    string
-		want    Challenge
+		want    protocol.Challenge
 		wantErr bool
 	}{
 		{
 			"Successfull Challenge Create",
-			Challenge{},
+			protocol.Challenge{},
 			false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := CreateChallenge()
+			got, err := protocol.CreateChallenge()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CreateChallenge() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -34,7 +36,7 @@ func TestCreateChallenge(t *testing.T) {
 }
 
 func TestChallenge_String(t *testing.T) {
-	newChallenge, err := CreateChallenge()
+	newChallenge, err := protocol.CreateChallenge()
 	if err != nil {
 		t.Errorf("CreateChallenge() error = %v", err)
 		return
@@ -42,7 +44,7 @@ func TestChallenge_String(t *testing.T) {
 	wantChallenge := base64.RawURLEncoding.EncodeToString(newChallenge)
 	tests := []struct {
 		name string
-		c    Challenge
+		c    protocol.Challenge
 		want string
 	}{
 		{

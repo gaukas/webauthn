@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 )
@@ -53,7 +54,55 @@ type ParsedCredentialCreationData struct {
 	Raw      CredentialCreationResponse
 }
 
-func ParseCredentialCreationResponse(response *http.Request) (*ParsedCredentialCreationData, error) {
+func ParseCredentialCreationResponse(data interface{}) (*ParsedCredentialCreationData, error) {
+	var ccr CredentialCreationResponse
+	if data == nil {
+		return nil, ErrBadRequest.WithDetails("No response given")
+	}
+	switch t := data.(type) {
+	case []byte:
+		return ParseCredentialCreationResponseRaw(t)
+	case map[string]interface{}:
+		return ParseCredentialCreationResponseMap(t)
+	case *http.Request:
+		return ParseCredentialCreationResponseHTTP(t)
+	case io.Reader:
+		return ParseCredentialCreationResponseBody(t)
+	case CredentialCreationResponse:
+		ccr = t
+	case *CredentialCreationResponse:
+		ccr = *t
+	default:
+		return nil, ErrBadRequest.WithDetails("CredentialCreationResponse not given")
+	}
+	return ParseCredentialCreation(ccr)
+}
+
+func ParseCredentialCreationResponseRaw(raw []byte) (pccd *ParsedCredentialCreationData, err error) {
+	var ccr CredentialCreationResponse
+	if raw == nil {
+		return nil, ErrBadRequest.WithDetails("No response given")
+	}
+	err = json.Unmarshal(raw, &ccr)
+	if err != nil {
+		return nil, ErrBadRequest.WithDetails("Parse error for Registration").WithInfo(err.Error())
+	}
+	return ParseCredentialCreation(ccr)
+}
+
+func ParseCredentialCreationResponseMap(data map[string]interface{}) (*ParsedCredentialCreationData, error) {
+	var ccr CredentialCreationResponse
+	if data == nil {
+		return nil, ErrBadRequest.WithDetails("No response given")
+	}
+	err := json.Unmarshal([]byte(fmt.Sprintf("%v", data)), &ccr)
+	if err != nil {
+		return nil, ErrBadRequest.WithDetails("Parse error for Registration").WithInfo(err.Error())
+	}
+	return ParseCredentialCreation(ccr)
+}
+
+func ParseCredentialCreationResponseHTTP(response *http.Request) (*ParsedCredentialCreationData, error) {
 	if response == nil || response.Body == nil {
 		return nil, ErrBadRequest.WithDetails("No response given")
 	}
@@ -67,6 +116,10 @@ func ParseCredentialCreationResponseBody(body io.Reader) (*ParsedCredentialCreat
 		return nil, ErrBadRequest.WithDetails("Parse error for Registration").WithInfo(err.Error())
 	}
 
+	return ParseCredentialCreation(ccr)
+}
+
+func ParseCredentialCreation(ccr CredentialCreationResponse) (*ParsedCredentialCreationData, error) {
 	if ccr.ID == "" {
 		return nil, ErrBadRequest.WithDetails("Parse error for Registration").WithInfo("Missing ID")
 	}

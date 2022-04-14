@@ -1,24 +1,26 @@
-package protocol
+package protocol_test
 
 import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"testing"
+
+	"github.com/Gaukas/webauthn/protocol"
 )
 
 func TestAttestationVerify(t *testing.T) {
 	for i := range testAttestationOptions {
 		t.Run(fmt.Sprintf("Running test %d", i), func(t *testing.T) {
-			options := CredentialCreation{}
+			options := protocol.CredentialCreationOptions{}
 			if err := json.Unmarshal([]byte(testAttestationOptions[i]), &options); err != nil {
 				t.Fatal(err)
 			}
-			ccr := CredentialCreationResponse{}
+			ccr := protocol.CredentialCreationResponse{}
 			if err := json.Unmarshal([]byte(testAttestationResponses[i]), &ccr); err != nil {
 				t.Fatal(err)
 			}
-			var pcc ParsedCredentialCreationData
+			var pcc protocol.ParsedCredentialCreationData
 			pcc.ID, pcc.RawID, pcc.Type = ccr.ID, ccr.RawID, ccr.Type
 			pcc.Raw = ccr
 
@@ -32,26 +34,26 @@ func TestAttestationVerify(t *testing.T) {
 			// Test Base Verification
 			err = pcc.Verify(options.Response.Challenge.String(), false, options.Response.RelyingParty.ID, options.Response.RelyingParty.Name)
 			if err != nil {
-				t.Fatalf("Not valid: %+v (%+s)", err, err.(*Error).DevInfo)
+				t.Fatalf("Not valid: %+v (%+s)", err, err.(*protocol.Error).DevInfo)
 			}
 		})
 	}
 }
 
-func attestationTestUnpackRequest(t *testing.T, request string) CredentialCreation {
-	options := CredentialCreation{}
+func attestationTestUnpackRequest(t *testing.T, request string) protocol.CredentialCreationOptions {
+	options := protocol.CredentialCreationOptions{}
 	if err := json.Unmarshal([]byte(request), &options); err != nil {
 		t.Fatal(err)
 	}
 	return options
 }
 
-func attestationTestUnpackResponse(t *testing.T, response string) ParsedCredentialCreationData {
-	ccr := CredentialCreationResponse{}
+func attestationTestUnpackResponse(t *testing.T, response string) protocol.ParsedCredentialCreationData {
+	ccr := protocol.CredentialCreationResponse{}
 	if err := json.Unmarshal([]byte(response), &ccr); err != nil {
 		t.Fatal(err)
 	}
-	var pcc ParsedCredentialCreationData
+	var pcc protocol.ParsedCredentialCreationData
 	pcc.ID, pcc.RawID, pcc.Type = ccr.ID, ccr.RawID, ccr.Type
 	pcc.Raw = ccr
 
@@ -73,7 +75,7 @@ func TestPackedAttestationVerification(t *testing.T) {
 		// Unpack args
 		clientDataHash := sha256.Sum256(pcc.Raw.AttestationResponse.ClientDataJSON)
 
-		_, _, err := verifyPackedFormat(pcc.Response.AttestationObject, clientDataHash[:])
+		_, _, err := protocol.VerifyPackedFormat(pcc.Response.AttestationObject, clientDataHash[:])
 		if err != nil {
 			t.Fatalf("Not valid: %+v", err)
 		}

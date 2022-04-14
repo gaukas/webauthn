@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/duo-labs/webauthn/protocol/webauthncbor"
+	"github.com/Gaukas/webauthn/protocol/webauthncbor"
 )
 
 const (
@@ -14,6 +14,7 @@ const (
 
 	// https://w3c.github.io/webauthn/#attested-credential-data
 	maxCredentialIDLength = 1023
+	MaxCredentialIDLength = 1023
 )
 
 // Authenticators respond to Relying Party requests by returning an object derived from the
@@ -181,7 +182,7 @@ func (a *AuthenticatorData) Unmarshal(rawAuthData []byte) error {
 
 	if a.Flags.HasAttestedCredentialData() {
 		if len(rawAuthData) > minAttestedAuthLength {
-			validError := a.unmarshalAttestedData(rawAuthData)
+			validError := a.UnmarshalAttestedData(rawAuthData)
 			if validError != nil {
 				return validError
 			}
@@ -213,7 +214,7 @@ func (a *AuthenticatorData) Unmarshal(rawAuthData []byte) error {
 }
 
 // If Attestation Data is present, unmarshall that into the appropriate public key structure
-func (a *AuthenticatorData) unmarshalAttestedData(rawAuthData []byte) error {
+func (a *AuthenticatorData) UnmarshalAttestedData(rawAuthData []byte) error {
 	a.AttData.AAGUID = rawAuthData[37:53]
 	idLength := binary.BigEndian.Uint16(rawAuthData[53:55])
 	if len(rawAuthData) < int(55+idLength) {
@@ -223,12 +224,12 @@ func (a *AuthenticatorData) unmarshalAttestedData(rawAuthData []byte) error {
 		return ErrBadRequest.WithDetails("Authenticator attestation data credential id length too long")
 	}
 	a.AttData.CredentialID = rawAuthData[55 : 55+idLength]
-	a.AttData.CredentialPublicKey = unmarshalCredentialPublicKey(rawAuthData[55+idLength:])
+	a.AttData.CredentialPublicKey = UnmarshalCredentialPublicKey(rawAuthData[55+idLength:])
 	return nil
 }
 
 // Unmarshall the credential's Public Key into CBOR encoding
-func unmarshalCredentialPublicKey(keyBytes []byte) []byte {
+func UnmarshalCredentialPublicKey(keyBytes []byte) []byte {
 	var m interface{}
 	webauthncbor.Unmarshal(keyBytes, &m)
 	rawBytes, _ := webauthncbor.Marshal(m)

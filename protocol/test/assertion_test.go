@@ -1,13 +1,15 @@
-package protocol
+package protocol_test
 
 import (
 	"bytes"
 	"encoding/base64"
-	"github.com/duo-labs/webauthn/protocol/webauthncbor"
 	"io/ioutil"
 	"net/http"
 	"reflect"
 	"testing"
+
+	"github.com/Gaukas/webauthn/protocol"
+	"github.com/Gaukas/webauthn/protocol/webauthncbor"
 )
 
 func TestParseCredentialRequestResponse(t *testing.T) {
@@ -29,7 +31,7 @@ func TestParseCredentialRequestResponse(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    *ParsedCredentialAssertionData
+		want    *protocol.ParsedCredentialAssertionData
 		wantErr bool
 	}{
 		{
@@ -37,26 +39,26 @@ func TestParseCredentialRequestResponse(t *testing.T) {
 			args: args{
 				httpReq,
 			},
-			want: &ParsedCredentialAssertionData{
-				ParsedPublicKeyCredential: ParsedPublicKeyCredential{
-					ParsedCredential: ParsedCredential{
+			want: &protocol.ParsedCredentialAssertionData{
+				ParsedPublicKeyCredential: protocol.ParsedPublicKeyCredential{
+					ParsedCredential: protocol.ParsedCredential{
 						ID:   "AI7D5q2P0LS-Fal9ZT7CHM2N5BLbUunF92T8b6iYC199bO2kagSuU05-5dZGqb1SP0A0lyTWng",
 						Type: "public-key",
 					},
 					RawID: byteID,
 				},
-				Response: ParsedAssertionResponse{
-					CollectedClientData: CollectedClientData{
-						Type:      CeremonyType("webauthn.get"),
+				Response: protocol.ParsedAssertionResponse{
+					CollectedClientData: protocol.CollectedClientData{
+						Type:      protocol.CeremonyType("webauthn.get"),
 						Challenge: "E4PTcIH_HfX1pC6Sigk1SC9NAlgeztN0439vi8z_c9k",
 						Origin:    "https://webauthn.io",
 						Hint:      "do not compare clientDataJSON against a template. See https://goo.gl/yabPex",
 					},
-					AuthenticatorData: AuthenticatorData{
+					AuthenticatorData: protocol.AuthenticatorData{
 						RPIDHash: byteRPIDHash,
 						Counter:  1553097241,
 						Flags:    0x045,
-						AttData: AttestedCredentialData{
+						AttData: protocol.AttestedCredentialData{
 							AAGUID:              byteAAGUID,
 							CredentialID:        byteID,
 							CredentialPublicKey: byteCredentialPubKey,
@@ -65,16 +67,16 @@ func TestParseCredentialRequestResponse(t *testing.T) {
 					Signature:  byteSignature,
 					UserHandle: byteUserHandle,
 				},
-				Raw: CredentialAssertionResponse{
-					PublicKeyCredential: PublicKeyCredential{
-						Credential: Credential{
+				Raw: protocol.CredentialAssertionResponse{
+					PublicKeyCredential: protocol.PublicKeyCredential{
+						Credential: protocol.Credential{
 							Type: "public-key",
 							ID:   "AI7D5q2P0LS-Fal9ZT7CHM2N5BLbUunF92T8b6iYC199bO2kagSuU05-5dZGqb1SP0A0lyTWng",
 						},
 						RawID: byteID,
 					},
-					AssertionResponse: AuthenticatorAssertionResponse{
-						AuthenticatorResponse: AuthenticatorResponse{
+					AssertionResponse: protocol.AuthenticatorAssertionResponse{
+						AuthenticatorResponse: protocol.AuthenticatorResponse{
 							ClientDataJSON: byteClientDataJSON,
 						},
 						AuthenticatorData: byteAuthData,
@@ -88,7 +90,7 @@ func TestParseCredentialRequestResponse(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseCredentialRequestResponse(tt.args.response)
+			got, err := protocol.ParseCredentialRequestResponse(tt.args.response)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseCredentialRequestResponse() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -145,12 +147,12 @@ func TestParseCredentialRequestResponse(t *testing.T) {
 
 func TestParsedCredentialAssertionData_Verify(t *testing.T) {
 	type fields struct {
-		ParsedPublicKeyCredential ParsedPublicKeyCredential
-		Response                  ParsedAssertionResponse
-		Raw                       CredentialAssertionResponse
+		ParsedPublicKeyCredential protocol.ParsedPublicKeyCredential
+		Response                  protocol.ParsedAssertionResponse
+		Raw                       protocol.CredentialAssertionResponse
 	}
 	type args struct {
-		storedChallenge    Challenge
+		storedChallenge    protocol.Challenge
 		relyingPartyID     string
 		relyingPartyOrigin string
 		verifyUser         bool
@@ -166,7 +168,7 @@ func TestParsedCredentialAssertionData_Verify(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := &ParsedCredentialAssertionData{
+			p := &protocol.ParsedCredentialAssertionData{
 				ParsedPublicKeyCredential: tt.fields.ParsedPublicKeyCredential,
 				Response:                  tt.fields.Response,
 				Raw:                       tt.fields.Raw,

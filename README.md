@@ -1,28 +1,28 @@
 WebAuthn Library
 =============
-[![GoDoc](https://godoc.org/github.com/duo-labs/webauthn?status.svg)](https://godoc.org/github.com/duo-labs/webauthn)
-![Build Status](https://github.com/duo-labs/webauthn/workflows/Go/badge.svg)
-[![Go Report Card](https://goreportcard.com/badge/github.com/duo-labs/webauthn)](https://goreportcard.com/report/github.com/duo-labs/webauthn)
+[![GoDoc](https://godoc.org/github.com/Gaukas/webauthn?status.svg)](https://godoc.org/github.com/Gaukas/webauthn)
+![Build Status](https://github.com/Gaukas/webauthn/workflows/Go/badge.svg)
+[![Go Report Card](https://goreportcard.com/badge/github.com/Gaukas/webauthn)](https://goreportcard.com/report/github.com/Gaukas/webauthn)
 
 
 This library is meant to handle [Web Authentication](https://w3c.github.io/webauthn) for Go apps that wish to implement a passwordless solution for users. While the specification is currently in Candidate Recommendation, this library conforms as much as possible to 
 the guidelines and implementation procedures outlined by the document.
 
 ### Demo at webauthn.io
-An implementation of this library can be used at [webauthn.io](https://webauthn.io) and the code for this website can be found in the Duo Labs repository [`webauthn-io`](https://github.com/duo-labs/webauthn.io).
+An implementation of this library can be used at [webauthn.io](https://webauthn.io) and the code for this website can be found in the Duo Labs repository [`webauthn-io`](https://github.com/Gaukas/webauthn.io).
 
 ### Simplified demo
 A simplified demonstration of this library can be found [here](https://github.com/hbolimovsky/webauthn-example). It includes a minimal interface and is great for quickly testing out the code. The associated blog post can be found [here]().
 
 Quickstart
 ----------
-`go get github.com/duo-labs/webauthn` and initialize it in your application with basic configuration values. 
+`go get github.com/Gaukas/webauthn` and initialize it in your application with basic configuration values. 
 
 Make sure your `user` model is able to handle the interface functions laid out in `webauthn/user.go`. This means also supporting the storage and retrieval of the credential and authenticator structs in `webauthn/credential.go` and `webauthn/authenticator.go`, respectively.
 
 ### Initialize the request handler
 ```golang
-import "github.com/duo-labs/webauthn/webauthn"
+import "github.com/Gaukas/webauthn/webauthn"
 
 var (
     web *webauthn.WebAuthn
@@ -101,8 +101,8 @@ You can modify the default credential creation options for registration and logi
 You can modify the registration options in the following ways:
 ```golang
 // Wherever you handle your WebAuthn requests
-import "github.com/duo-labs/webauthn/protocol"
-import "github.com/duo-labs/webauthn/webauthn"
+import "github.com/Gaukas/webauthn/protocol"
+import "github.com/Gaukas/webauthn/webauthn"
 
 var webAuthnHandler webauthn.WebAuthn // init this in your init function
 
@@ -131,8 +131,8 @@ func beginRegistration() {
 You can modify the login options to allow only certain credentials:
 ```golang
 // Wherever you handle your WebAuthn requests
-import "github.com/duo-labs/webauthn/protocol"
-import "github.com/duo-labs/webauthn/webauthn"
+import "github.com/Gaukas/webauthn/protocol"
+import "github.com/Gaukas/webauthn/webauthn"
 
 var webAuthnHandler webauthn.WebAuthn // init this in your init function
 

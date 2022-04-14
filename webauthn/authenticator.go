@@ -1,7 +1,7 @@
 package webauthn
 
 import (
-	p "github.com/duo-labs/webauthn/protocol"
+	p "github.com/Gaukas/webauthn/protocol"
 )
 
 type Authenticator struct {

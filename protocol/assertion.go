@@ -8,7 +8,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/duo-labs/webauthn/protocol/webauthncose"
+	"github.com/Gaukas/webauthn/protocol/webauthncose"
 )
 
 // The raw response returned to us from an authenticator when we request a
@@ -43,11 +43,59 @@ type ParsedAssertionResponse struct {
 	UserHandle          []byte
 }
 
+func ParseCredentialRequestResponse(data interface{}) (pcad *ParsedCredentialAssertionData, err error) {
+	var car CredentialAssertionResponse
+	if data == nil {
+		return nil, ErrBadRequest.WithDetails("No response given")
+	}
+	switch t := data.(type) {
+	case []byte:
+		return ParseCredentialRequestResponseRaw(t)
+	case map[string]interface{}:
+		return ParseCredentialRequestResponseMap(t)
+	case *http.Request:
+		return ParseCredentialRequestResponseHTTP(t)
+	case io.Reader:
+		return ParseCredentialRequestResponseBody(t)
+	case CredentialAssertionResponse:
+		car = t
+	case *CredentialAssertionResponse:
+		car = *t
+	default:
+		return nil, ErrBadRequest.WithDetails("CredentialAssertionResponse not given")
+	}
+	return ParseCredentialRequest(car)
+}
+
+func ParseCredentialRequestResponseRaw(raw []byte) (pcad *ParsedCredentialAssertionData, err error) {
+	var car CredentialAssertionResponse
+	if raw == nil {
+		return nil, ErrBadRequest.WithDetails("No response given")
+	}
+	err = json.Unmarshal(raw, &car)
+	if err != nil {
+		return nil, ErrBadRequest.WithDetails("Parse error for Assertion")
+	}
+	return ParseCredentialRequest(car)
+}
+
+func ParseCredentialRequestResponseMap(data map[string]interface{}) (*ParsedCredentialAssertionData, error) {
+	var car CredentialAssertionResponse
+	if data == nil {
+		return nil, ErrBadRequest.WithDetails("No response given")
+	}
+	err := json.Unmarshal([]byte(fmt.Sprintf("%v", data)), &car)
+	if err != nil {
+		return nil, ErrBadRequest.WithDetails("Parse error for Assertion")
+	}
+	return ParseCredentialRequest(car)
+}
+
 // Parse the credential request response into a format that is either required by the specification
 // or makes the assertion verification steps easier to complete. This takes an http.Request that contains
 // the assertion response data in a raw, mostly base64 encoded format, and parses the data into
 // manageable structures
-func ParseCredentialRequestResponse(response *http.Request) (*ParsedCredentialAssertionData, error) {
+func ParseCredentialRequestResponseHTTP(response *http.Request) (*ParsedCredentialAssertionData, error) {
 	if response == nil || response.Body == nil {
 		return nil, ErrBadRequest.WithDetails("No response given")
 	}
@@ -65,6 +113,12 @@ func ParseCredentialRequestResponseBody(body io.Reader) (*ParsedCredentialAssert
 		return nil, ErrBadRequest.WithDetails("Parse error for Assertion")
 	}
 
+	return ParseCredentialRequest(car)
+}
+
+// ParseCredentialRequest takes a CredentialAssertionResponse and parses it into ParsedCredentialAssertionData
+// Note: This function was separated out from ParseCredentialRequestResponseBody for better programmability
+func ParseCredentialRequest(car CredentialAssertionResponse) (pcad *ParsedCredentialAssertionData, err error) {
 	if car.ID == "" {
 		return nil, ErrBadRequest.WithDetails("CredentialAssertionResponse with ID missing")
 	}

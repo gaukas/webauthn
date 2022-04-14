@@ -8,16 +8,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/duo-labs/webauthn/metadata"
+	"github.com/Gaukas/webauthn/metadata"
 	"github.com/google/uuid"
 
-	"github.com/duo-labs/webauthn/protocol/webauthncose"
+	"github.com/Gaukas/webauthn/protocol/webauthncose"
 )
 
 var packedAttestationKey = "packed"
 
 func init() {
-	RegisterAttestationFormat(packedAttestationKey, verifyPackedFormat)
+	RegisterAttestationFormat(packedAttestationKey, VerifyPackedFormat)
 }
 
 // From §8.2. https://www.w3.org/TR/webauthn/#packed-attestation
@@ -36,7 +36,7 @@ func init() {
 //		 	alg: COSEAlgorithmIdentifier
 //		 	sig: bytes,
 //		 }
-func verifyPackedFormat(att AttestationObject, clientDataHash []byte) (string, []interface{}, error) {
+func VerifyPackedFormat(att AttestationObject, clientDataHash []byte) (string, []interface{}, error) {
 	// Step 1. Verify that attStmt is valid CBOR conforming to the syntax defined
 	// above and perform CBOR decoding on it to extract the contained fields.
 

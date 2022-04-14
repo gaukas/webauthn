@@ -1,14 +1,16 @@
-package protocol
+package protocol_test
 
 import (
 	"crypto/sha256"
 	"reflect"
 	"testing"
+
+	"github.com/Gaukas/webauthn/protocol"
 )
 
 func Test_verifySafetyNetFormat(t *testing.T) {
 	type args struct {
-		att            AttestationObject
+		att            protocol.AttestationObject
 		clientDataHash []byte
 	}
 	successAttResponse := attestationTestUnpackResponse(t, safetyNetTestResponse["success"]).Response.AttestationObject
@@ -33,7 +35,7 @@ func Test_verifySafetyNetFormat(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1, err := verifySafetyNetFormat(tt.args.att, tt.args.clientDataHash)
+			got, got1, err := protocol.VerifySafetyNetFormat(tt.args.att, tt.args.clientDataHash)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("verifySafetyNetFormat() error = %v, wantErr %v", err, tt.wantErr)
 				return

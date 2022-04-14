@@ -1,4 +1,4 @@
-package protocol
+package protocol_test
 
 import (
 	"bytes"
@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/Gaukas/webauthn/protocol"
 )
 
 func TestBase64UnmarshalJSON(t *testing.T) {
 	type testData struct {
-		StringData  string           `json:"string_data"`
-		EncodedData URLEncodedBase64 `json:"encoded_data"`
+		StringData  string                    `json:"string_data"`
+		EncodedData protocol.URLEncodedBase64 `json:"encoded_data"`
 	}
 
 	tests := []struct {
@@ -23,7 +25,7 @@ func TestBase64UnmarshalJSON(t *testing.T) {
 			encodedMessage: "\"" + base64.RawURLEncoding.EncodeToString([]byte("test base64 data")) + "\"",
 			expectedTestData: testData{
 				StringData:  "test string",
-				EncodedData: URLEncodedBase64("test base64 data"),
+				EncodedData: protocol.URLEncodedBase64("test base64 data"),
 			},
 		},
 		{

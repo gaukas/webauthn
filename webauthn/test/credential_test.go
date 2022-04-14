@@ -1,10 +1,11 @@
-package webauthn
+package webauthn_test
 
 import (
 	"reflect"
 	"testing"
 
-	"github.com/duo-labs/webauthn/protocol"
+	"github.com/Gaukas/webauthn/protocol"
+	"github.com/Gaukas/webauthn/webauthn"
 )
 
 func TestMakeNewCredential(t *testing.T) {
@@ -14,14 +15,14 @@ func TestMakeNewCredential(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    *Credential
+		want    *webauthn.Credential
 		wantErr bool
 	}{
 		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := MakeNewCredential(tt.args.c)
+			got, err := webauthn.MakeNewCredential(tt.args.c)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("MakeNewCredential() error = %v, wantErr %v", err, tt.wantErr)
 				return

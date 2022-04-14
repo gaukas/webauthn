@@ -1,14 +1,16 @@
-package protocol
+package protocol_test
 
 import (
 	"encoding/base64"
 	"net/url"
 	"testing"
+
+	"github.com/Gaukas/webauthn/protocol"
 )
 
-func setupCollectedClientData(challenge []byte) *CollectedClientData {
-	ccd := &CollectedClientData{
-		Type:   CreateCeremony,
+func setupCollectedClientData(challenge []byte) *protocol.CollectedClientData {
+	ccd := &protocol.CollectedClientData{
+		Type:   protocol.CreateCeremony,
 		Origin: "example.com",
 	}
 
@@ -17,7 +19,7 @@ func setupCollectedClientData(challenge []byte) *CollectedClientData {
 }
 
 func TestVerifyCollectedClientData(t *testing.T) {
-	newChallenge, err := CreateChallenge()
+	newChallenge, err := protocol.CreateChallenge()
 	if err != nil {
 		t.Fatalf("error creating challenge: %s", err)
 	}
@@ -26,25 +28,25 @@ func TestVerifyCollectedClientData(t *testing.T) {
 	var storedChallenge = newChallenge
 
 	originURL, _ := url.Parse(ccd.Origin)
-	err = ccd.Verify(storedChallenge.String(), ccd.Type, FullyQualifiedOrigin(originURL))
+	err = ccd.Verify(storedChallenge.String(), ccd.Type, protocol.FullyQualifiedOrigin(originURL))
 	if err != nil {
-		t.Fatalf("error verifying challenge: expected %#v got %#v", Challenge(ccd.Challenge), storedChallenge)
+		t.Fatalf("error verifying challenge: expected %#v got %#v", protocol.Challenge(ccd.Challenge), storedChallenge)
 	}
 }
 
 func TestVerifyCollectedClientDataIncorrectChallenge(t *testing.T) {
-	newChallenge, err := CreateChallenge()
+	newChallenge, err := protocol.CreateChallenge()
 	if err != nil {
 		t.Fatalf("error creating challenge: %s", err)
 	}
 	ccd := setupCollectedClientData(newChallenge)
-	bogusChallenge, err := CreateChallenge()
+	bogusChallenge, err := protocol.CreateChallenge()
 	if err != nil {
 		t.Fatalf("error creating challenge: %s", err)
 	}
-	storedChallenge := Challenge(bogusChallenge)
+	storedChallenge := protocol.Challenge(bogusChallenge)
 	err = ccd.Verify(storedChallenge.String(), ccd.Type, ccd.Origin)
 	if err == nil {
-		t.Fatalf("error expected but not received. expected %#v got %#v", Challenge(ccd.Challenge), storedChallenge)
+		t.Fatalf("error expected but not received. expected %#v got %#v", protocol.Challenge(ccd.Challenge), storedChallenge)
 	}
 }

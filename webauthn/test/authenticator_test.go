@@ -1,10 +1,11 @@
-package webauthn
+package webauthn_test
 
 import (
 	"reflect"
 	"testing"
 
-	p "github.com/duo-labs/webauthn/protocol"
+	p "github.com/Gaukas/webauthn/protocol"
+	"github.com/Gaukas/webauthn/webauthn"
 )
 
 func TestAuthenticator_UpdateCounter(t *testing.T) {
@@ -85,7 +86,7 @@ func TestAuthenticator_UpdateCounter(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a := &Authenticator{
+			a := &webauthn.Authenticator{
 				AAGUID:       tt.fields.AAGUID,
 				SignCount:    tt.fields.SignCount,
 				CloneWarning: tt.fields.CloneWarning,
@@ -151,7 +152,7 @@ func TestSelectAuthenticator(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := SelectAuthenticator(tt.args.att, tt.args.rrk, tt.args.uv); !reflect.DeepEqual(got, tt.want) {
+			if got := webauthn.SelectAuthenticator(tt.args.att, tt.args.rrk, tt.args.uv); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("SelectAuthenticator() = %v, want %v", got, tt.want)
 			}
 		})

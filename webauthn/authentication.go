@@ -3,17 +3,22 @@ package webauthn
 import (
 	"bytes"
 	"encoding/base64"
-	"net/http"
 
-	"github.com/duo-labs/webauthn/protocol"
+	"github.com/Gaukas/webauthn/protocol"
 )
 
-// BEGIN REGISTRATION
-// These objects help us creat the CredentialCreationOptions
-// that will be passed to the authenticator via the user client
+type AuthenticationRequest struct {
+	session                  *SessionData                       // A server implementation should save this for verification
+	credentialRequestOptions *protocol.CredentialRequestOptions // A server implementation should send this to the client
+}
 
-// LoginOption is used to provide parameters that modify the default Credential Assertion Payload that is sent to the user.
-type LoginOption func(*protocol.PublicKeyCredentialRequestOptions)
+func (ar *AuthenticationRequest) Session() *SessionData {
+	return ar.session
+}
+
+func (ar *AuthenticationRequest) CredentialRequestOptions() *protocol.CredentialRequestOptions {
+	return ar.credentialRequestOptions
+}
 
 // Creates the CredentialAssertion data payload that should be sent to the user agent for beginning the
 // login/assertion process. The format of this data can be seen in §5.5 of the WebAuthn specification
@@ -21,16 +26,17 @@ type LoginOption func(*protocol.PublicKeyCredentialRequestOptions)
 // additional LoginOption parameters. This function also returns sessionData, that must be stored by the
 // RP in a secure manner and then provided to the FinishLogin function. This data helps us verify the
 // ownership of the credential being retreived.
-func (webauthn *WebAuthn) BeginLogin(user User, opts ...LoginOption) (*protocol.CredentialAssertion, *SessionData, error) {
+// [TO-DO] - Add support for usernameless
+func (webauthn *WebAuthn) Authenticate(user User, opts ...AuthenticationOption) (*AuthenticationRequest, error) {
 	challenge, err := protocol.CreateChallenge()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	credentials := user.WebAuthnCredentials()
 
 	if len(credentials) == 0 { // If the user does not have any credentials, we cannot do login
-		return nil, nil, protocol.ErrBadRequest.WithDetails("Found no credentials for user")
+		return nil, protocol.ErrBadRequest.WithDetails("Found no credentials for user")
 	}
 
 	var allowedCredentials = make([]protocol.CredentialDescriptor, len(credentials))
@@ -62,46 +68,74 @@ func (webauthn *WebAuthn) BeginLogin(user User, opts ...LoginOption) (*protocol.
 		Extensions:           requestOptions.Extensions,
 	}
 
-	response := protocol.CredentialAssertion{requestOptions}
+	response := protocol.CredentialRequestOptions{Response: requestOptions}
 
-	return &response, &newSessionData, nil
+	return &AuthenticationRequest{
+		session:                  &newSessionData,
+		credentialRequestOptions: &response,
+	}, nil
 }
+
+// AuthenticationOption is used to provide parameters that modify the default Credential Assertion Payload that is sent to the user.
+type AuthenticationOption func(*protocol.PublicKeyCredentialRequestOptions)
 
 // Updates the allowed credential list with Credential Descripiptors, discussed in §5.10.3
 // (https://www.w3.org/TR/webauthn/#dictdef-publickeycredentialdescriptor) with user-supplied values
-func WithAllowedCredentials(allowList []protocol.CredentialDescriptor) LoginOption {
+func WithAllowedCredentials(allowList []protocol.CredentialDescriptor) AuthenticationOption {
 	return func(cco *protocol.PublicKeyCredentialRequestOptions) {
 		cco.AllowedCredentials = allowList
 	}
 }
 
 // Request a user verification preference
-func WithUserVerification(userVerification protocol.UserVerificationRequirement) LoginOption {
+func WithUserVerification(userVerification protocol.UserVerificationRequirement) AuthenticationOption {
 	return func(cco *protocol.PublicKeyCredentialRequestOptions) {
 		cco.UserVerification = userVerification
 	}
 }
 
 // Request additional extensions for assertion
-func WithAssertionExtensions(extensions protocol.AuthenticationExtensions) LoginOption {
+func WithAssertionExtensions(extensions protocol.AuthenticationExtensions) AuthenticationOption {
 	return func(cco *protocol.PublicKeyCredentialRequestOptions) {
 		cco.Extensions = extensions
 	}
 }
 
-// Take the response from the client and validate it against the user credentials and stored session data
-func (webauthn *WebAuthn) FinishLogin(user User, session SessionData, response *http.Request) (*Credential, error) {
+// Request the challenge to be set as a specific value
+func WithChallenge(challenge []byte) AuthenticationOption {
+	return func(cco *protocol.PublicKeyCredentialRequestOptions) {
+		cco.Challenge = challenge
+	}
+}
+
+type AuthenticationResponse struct {
+	user           User // The user submitting the
+	session        *SessionData
+	response       interface{}
+	parsedResponse *protocol.ParsedCredentialAssertionData
+}
+
+func ParseAuthenticationResponse(user User, session *SessionData, response interface{}) (*AuthenticationResponse, error) {
 	parsedResponse, err := protocol.ParseCredentialRequestResponse(response)
 	if err != nil {
 		return nil, err
 	}
 
-	return webauthn.ValidateLogin(user, session, parsedResponse)
+	return &AuthenticationResponse{
+		user:           user,
+		session:        session,
+		response:       response,
+		parsedResponse: parsedResponse,
+	}, nil
 }
 
 // ValidateLogin takes a parsed response and validates it against the user credentials and session data
-func (webauthn *WebAuthn) ValidateLogin(user User, session SessionData, parsedResponse *protocol.ParsedCredentialAssertionData) (*Credential, error) {
-	if !bytes.Equal(user.WebAuthnID(), session.UserID) {
+func (webauthn *WebAuthn) VerifyAuthentication(ar *AuthenticationResponse) (*Credential, error) {
+	if ar.parsedResponse == nil {
+		return nil, protocol.ErrVerification.WithDetails("No parsed response")
+	}
+
+	if !bytes.Equal(ar.user.WebAuthnID(), ar.session.UserID) {
 		return nil, protocol.ErrBadRequest.WithDetails("ID mismatch for User and Session")
 	}
 
@@ -110,11 +144,11 @@ func (webauthn *WebAuthn) ValidateLogin(user User, session SessionData, parsedRe
 	// allowCredentials.
 
 	// NON-NORMATIVE Prior Step: Verify that the allowCredentials for the session are owned by the user provided
-	userCredentials := user.WebAuthnCredentials()
+	userCredentials := ar.user.WebAuthnCredentials()
 	var credentialFound bool
-	if len(session.AllowedCredentialIDs) > 0 {
+	if len(ar.session.AllowedCredentialIDs) > 0 {
 		var credentialsOwned bool
-		for _, allowedCredentialID := range session.AllowedCredentialIDs {
+		for _, allowedCredentialID := range ar.session.AllowedCredentialIDs {
 			for _, userCredential := range userCredentials {
 				if bytes.Equal(userCredential.ID, allowedCredentialID) {
 					credentialsOwned = true
@@ -126,8 +160,8 @@ func (webauthn *WebAuthn) ValidateLogin(user User, session SessionData, parsedRe
 		if !credentialsOwned {
 			return nil, protocol.ErrBadRequest.WithDetails("User does not own all credentials from the allowedCredentialList")
 		}
-		for _, allowedCredentialID := range session.AllowedCredentialIDs {
-			if bytes.Equal(parsedResponse.RawID, allowedCredentialID) {
+		for _, allowedCredentialID := range ar.session.AllowedCredentialIDs {
+			if bytes.Equal(ar.parsedResponse.RawID, allowedCredentialID) {
 				credentialFound = true
 				break
 			}
@@ -142,20 +176,22 @@ func (webauthn *WebAuthn) ValidateLogin(user User, session SessionData, parsedRe
 
 	// This is in part handled by our Step 1
 
-	userHandle := parsedResponse.Response.UserHandle
-	if userHandle != nil && len(userHandle) > 0 {
-		if !bytes.Equal(userHandle, user.WebAuthnID()) {
+	userHandle := ar.parsedResponse.Response.UserHandle
+	if len(userHandle) > 0 {
+		if !bytes.Equal(userHandle, ar.user.WebAuthnID()) {
 			return nil, protocol.ErrBadRequest.WithDetails("userHandle and User ID do not match")
 		}
 	}
 
 	// Step 3. Using credential’s id attribute (or the corresponding rawId, if base64url encoding is inappropriate
 	// for your use case), look up the corresponding credential public key.
-	var loginCredential Credential
-	for _, cred := range userCredentials {
-		if bytes.Equal(cred.ID, parsedResponse.RawID) {
-			loginCredential = cred
+	var credential Credential
+	var credentialIndex int
+	for idx, cred := range userCredentials {
+		if bytes.Equal(cred.ID, ar.parsedResponse.RawID) {
+			credential = cred
 			credentialFound = true
+			credentialIndex = idx
 			break
 		}
 		credentialFound = false
@@ -165,24 +201,27 @@ func (webauthn *WebAuthn) ValidateLogin(user User, session SessionData, parsedRe
 		return nil, protocol.ErrBadRequest.WithDetails("Unable to find the credential for the returned credential ID")
 	}
 
-	shouldVerifyUser := session.UserVerification == protocol.VerificationRequired
+	shouldVerifyUser := ar.session.UserVerification == protocol.VerificationRequired
 
 	rpID := webauthn.Config.RPID
 	rpOrigin := webauthn.Config.RPOrigin
 
-	appID, err := parsedResponse.GetAppID(session.Extensions, loginCredential.AttestationType)
+	appID, err := ar.parsedResponse.GetAppID(ar.session.Extensions, credential.AttestationType)
 	if err != nil {
 		return nil, err
 	}
 
 	// Handle steps 4 through 16
-	validError := parsedResponse.Verify(session.Challenge, rpID, rpOrigin, appID, shouldVerifyUser, loginCredential.PublicKey)
+	validError := ar.parsedResponse.Verify(ar.session.Challenge, rpID, rpOrigin, appID, shouldVerifyUser, credential.PublicKey)
 	if validError != nil {
 		return nil, validError
 	}
 
 	// Handle step 17
-	loginCredential.Authenticator.UpdateCounter(parsedResponse.Response.AuthenticatorData.Counter)
+	credential.Authenticator.UpdateCounter(ar.parsedResponse.Response.AuthenticatorData.Counter)
+	if !credential.Authenticator.CloneWarning { // If not cloned then update the counter value
+		err = ar.user.WebAuthnUpdateCredential(credentialIndex, credential)
+	}
 
-	return &loginCredential, nil
+	return &credential, err
 }

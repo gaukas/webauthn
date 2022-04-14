@@ -1,18 +1,20 @@
-package protocol
+package protocol_test
 
 import (
 	"reflect"
 	"testing"
+
+	"github.com/Gaukas/webauthn/protocol"
 )
 
 func TestPublicKeyCredentialRequestOptions_GetAllowedCredentialIDs(t *testing.T) {
 	type fields struct {
-		Challenge          Challenge
+		Challenge          protocol.Challenge
 		Timeout            int
 		RelyingPartyID     string
-		AllowedCredentials []CredentialDescriptor
-		UserVerification   UserVerificationRequirement
-		Extensions         AuthenticationExtensions
+		AllowedCredentials []protocol.CredentialDescriptor
+		UserVerification   protocol.UserVerificationRequirement
+		Extensions         protocol.AuthenticationExtensions
 	}
 	tests := []struct {
 		name   string
@@ -22,16 +24,16 @@ func TestPublicKeyCredentialRequestOptions_GetAllowedCredentialIDs(t *testing.T)
 		{
 			"Correct Credential IDs",
 			fields{
-				Challenge: Challenge([]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}),
+				Challenge: protocol.Challenge([]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}),
 				Timeout:   60,
-				AllowedCredentials: []CredentialDescriptor{
+				AllowedCredentials: []protocol.CredentialDescriptor{
 					{
-						"public-key", []byte("1234"), []AuthenticatorTransport{"usb"},
+						Type: "public-key", CredentialID: []byte("1234"), Transport: []protocol.AuthenticatorTransport{"usb"},
 					},
 				},
 				RelyingPartyID:   "test.org",
-				UserVerification: VerificationPreferred,
-				Extensions:       AuthenticationExtensions{},
+				UserVerification: protocol.VerificationPreferred,
+				Extensions:       protocol.AuthenticationExtensions{},
 			},
 			[][]byte{
 				[]byte("1234"),
@@ -40,7 +42,7 @@ func TestPublicKeyCredentialRequestOptions_GetAllowedCredentialIDs(t *testing.T)
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			a := &PublicKeyCredentialRequestOptions{
+			a := &protocol.PublicKeyCredentialRequestOptions{
 				Challenge:          tt.fields.Challenge,
 				Timeout:            tt.fields.Timeout,
 				RelyingPartyID:     tt.fields.RelyingPartyID,

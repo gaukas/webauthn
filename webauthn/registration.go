@@ -3,23 +3,31 @@ package webauthn
 import (
 	"bytes"
 	"encoding/base64"
-	"net/http"
 
-	"github.com/duo-labs/webauthn/protocol"
-	"github.com/duo-labs/webauthn/protocol/webauthncose"
+	"github.com/Gaukas/webauthn/protocol"
+	"github.com/Gaukas/webauthn/protocol/webauthncose"
 )
 
-// BEGIN REGISTRATION
-// These objects help us creat the CredentialCreationOptions
-// that will be passed to the authenticator via the user client
+type RegistrationRequest struct {
+	session                   *SessionData                        // A server implementation should save this for verification
+	credentialCreationOptions *protocol.CredentialCreationOptions // A server implementation should send this to the client
+}
+
+func (rr *RegistrationRequest) Session() *SessionData {
+	return rr.session
+}
+
+func (rr *RegistrationRequest) CredentialCreationOptions() *protocol.CredentialCreationOptions {
+	return rr.credentialCreationOptions
+}
 
 type RegistrationOption func(*protocol.PublicKeyCredentialCreationOptions)
 
 // Generate a new set of registration data to be sent to the client and authenticator.
-func (webauthn *WebAuthn) BeginRegistration(user User, opts ...RegistrationOption) (*protocol.CredentialCreation, *SessionData, error) {
+func (webauthn *WebAuthn) Register(user User, opts ...RegistrationOption) (*RegistrationRequest, error) {
 	challenge, err := protocol.CreateChallenge()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	webAuthnUser := protocol.UserEntity{
@@ -55,7 +63,7 @@ func (webauthn *WebAuthn) BeginRegistration(user User, opts ...RegistrationOptio
 		setter(&creationOptions)
 	}
 
-	response := protocol.CredentialCreation{Response: creationOptions}
+	response := protocol.CredentialCreationOptions{Response: creationOptions}
 	newSessionData := SessionData{
 		Challenge:        base64.RawURLEncoding.EncodeToString(challenge),
 		UserID:           user.WebAuthnID(),
@@ -63,10 +71,13 @@ func (webauthn *WebAuthn) BeginRegistration(user User, opts ...RegistrationOptio
 	}
 
 	if err != nil {
-		return nil, nil, protocol.ErrParsingData.WithDetails("Error packing session data")
+		return nil, protocol.ErrParsingData.WithDetails("Error packing session data")
 	}
 
-	return &response, &newSessionData, nil
+	return &RegistrationRequest{
+		session:                   &newSessionData,
+		credentialCreationOptions: &response,
+	}, nil
 }
 
 // Provide non-default parameters regarding the authenticator to select.
@@ -111,31 +122,45 @@ func WithResidentKeyRequirement(requirement protocol.ResidentKeyRequirement) Reg
 	}
 }
 
-// Take the response from the authenticator and client and verify the credential against the user's credentials and
-// session data.
-func (webauthn *WebAuthn) FinishRegistration(user User, session SessionData, response *http.Request) (*Credential, error) {
+type RegistrationResponse struct {
+	user           User // The user submitting the
+	session        *SessionData
+	response       interface{}
+	parsedResponse *protocol.ParsedCredentialCreationData
+}
+
+func ParseRegistrationResponse(user User, session *SessionData, response interface{}) (*RegistrationResponse, error) {
 	parsedResponse, err := protocol.ParseCredentialCreationResponse(response)
 	if err != nil {
 		return nil, err
 	}
 
-	return webauthn.CreateCredential(user, session, parsedResponse)
+	return &RegistrationResponse{
+		user:           user,
+		session:        session,
+		response:       response,
+		parsedResponse: parsedResponse,
+	}, nil
 }
 
 // CreateCredential verifies a parsed response against the user's credentials and session data.
-func (webauthn *WebAuthn) CreateCredential(user User, session SessionData, parsedResponse *protocol.ParsedCredentialCreationData) (*Credential, error) {
-	if !bytes.Equal(user.WebAuthnID(), session.UserID) {
+func (webauthn *WebAuthn) CreateCredential(rr *RegistrationResponse) (*Credential, error) {
+	if rr.parsedResponse == nil {
+		return nil, protocol.ErrVerification.WithDetails("No parsed response")
+	}
+
+	if !bytes.Equal(rr.user.WebAuthnID(), rr.session.UserID) {
 		return nil, protocol.ErrBadRequest.WithDetails("ID mismatch for User and Session")
 	}
 
-	shouldVerifyUser := session.UserVerification == protocol.VerificationRequired
+	shouldVerifyUser := rr.session.UserVerification == protocol.VerificationRequired
 
-	invalidErr := parsedResponse.Verify(session.Challenge, shouldVerifyUser, webauthn.Config.RPID, webauthn.Config.RPOrigin)
+	invalidErr := rr.parsedResponse.Verify(rr.session.Challenge, shouldVerifyUser, webauthn.Config.RPID, webauthn.Config.RPOrigin)
 	if invalidErr != nil {
 		return nil, invalidErr
 	}
 
-	return MakeNewCredential(parsedResponse)
+	return MakeNewCredential(rr.parsedResponse)
 }
 
 func defaultRegistrationCredentialParameters() []protocol.CredentialParameter {

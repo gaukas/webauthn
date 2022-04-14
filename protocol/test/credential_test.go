@@ -1,13 +1,15 @@
-package protocol
+package protocol_test
 
 import (
 	"bytes"
 	"encoding/base64"
-	"github.com/duo-labs/webauthn/protocol/webauthncbor"
 	"io/ioutil"
 	"net/http"
 	"reflect"
 	"testing"
+
+	"github.com/Gaukas/webauthn/protocol"
+	"github.com/Gaukas/webauthn/protocol/webauthncbor"
 )
 
 func TestParseCredentialCreationResponse(t *testing.T) {
@@ -27,7 +29,7 @@ func TestParseCredentialCreationResponse(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    *ParsedCredentialCreationData
+		want    *protocol.ParsedCredentialCreationData
 		wantErr bool
 	}{
 		{
@@ -35,28 +37,28 @@ func TestParseCredentialCreationResponse(t *testing.T) {
 			args: args{
 				response: httpReq,
 			},
-			want: &ParsedCredentialCreationData{
-				ParsedPublicKeyCredential: ParsedPublicKeyCredential{
-					ParsedCredential: ParsedCredential{
+			want: &protocol.ParsedCredentialCreationData{
+				ParsedPublicKeyCredential: protocol.ParsedPublicKeyCredential{
+					ParsedCredential: protocol.ParsedCredential{
 						ID:   "6xrtBhJQW6QU4tOaB4rrHaS2Ks0yDDL_q8jDC16DEjZ-VLVf4kCRkvl2xp2D71sTPYns-exsHQHTy3G-zJRK8g",
 						Type: "public-key",
 					},
 					RawID: byteID,
 				},
-				Response: ParsedAttestationResponse{
-					CollectedClientData: CollectedClientData{
-						Type:      CeremonyType("webauthn.create"),
+				Response: protocol.ParsedAttestationResponse{
+					CollectedClientData: protocol.CollectedClientData{
+						Type:      protocol.CeremonyType("webauthn.create"),
 						Challenge: "W8GzFU8pGjhoRbWrLDlamAfq_y4S1CZG1VuoeRLARrE",
 						Origin:    "https://webauthn.io",
 					},
-					AttestationObject: AttestationObject{
+					AttestationObject: protocol.AttestationObject{
 						Format:      "none",
 						RawAuthData: byteAuthData,
-						AuthData: AuthenticatorData{
+						AuthData: protocol.AuthenticatorData{
 							RPIDHash: byteRPIDHash,
 							Counter:  0,
 							Flags:    0x041,
-							AttData: AttestedCredentialData{
+							AttData: protocol.AttestedCredentialData{
 								AAGUID:              make([]byte, 16),
 								CredentialID:        byteID,
 								CredentialPublicKey: byteCredentialPubKey,
@@ -64,16 +66,16 @@ func TestParseCredentialCreationResponse(t *testing.T) {
 						},
 					},
 				},
-				Raw: CredentialCreationResponse{
-					PublicKeyCredential: PublicKeyCredential{
-						Credential: Credential{
+				Raw: protocol.CredentialCreationResponse{
+					PublicKeyCredential: protocol.PublicKeyCredential{
+						Credential: protocol.Credential{
 							Type: "public-key",
 							ID:   "6xrtBhJQW6QU4tOaB4rrHaS2Ks0yDDL_q8jDC16DEjZ-VLVf4kCRkvl2xp2D71sTPYns-exsHQHTy3G-zJRK8g",
 						},
 						RawID: byteID,
 					},
-					AttestationResponse: AuthenticatorAttestationResponse{
-						AuthenticatorResponse: AuthenticatorResponse{
+					AttestationResponse: protocol.AuthenticatorAttestationResponse{
+						AuthenticatorResponse: protocol.AuthenticatorResponse{
 							ClientDataJSON: byteClientDataJSON,
 						},
 						AttestationObject: byteAttObject,
@@ -86,7 +88,7 @@ func TestParseCredentialCreationResponse(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ParseCredentialCreationResponse(tt.args.response)
+			got, err := protocol.ParseCredentialCreationResponse(tt.args.response)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseCredentialCreationResponse() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -145,12 +147,12 @@ func TestParsedCredentialCreationData_Verify(t *testing.T) {
 	byteClientDataJSON, _ := base64.RawURLEncoding.DecodeString("eyJjaGFsbGVuZ2UiOiJXOEd6RlU4cEdqaG9SYldyTERsYW1BZnFfeTRTMUNaRzFWdW9lUkxBUnJFIiwib3JpZ2luIjoiaHR0cHM6Ly93ZWJhdXRobi5pbyIsInR5cGUiOiJ3ZWJhdXRobi5jcmVhdGUifQ")
 
 	type fields struct {
-		ParsedPublicKeyCredential ParsedPublicKeyCredential
-		Response                  ParsedAttestationResponse
-		Raw                       CredentialCreationResponse
+		ParsedPublicKeyCredential protocol.ParsedPublicKeyCredential
+		Response                  protocol.ParsedAttestationResponse
+		Raw                       protocol.CredentialCreationResponse
 	}
 	type args struct {
-		storedChallenge    Challenge
+		storedChallenge    protocol.Challenge
 		verifyUser         bool
 		relyingPartyID     string
 		relyingPartyOrigin string
@@ -164,27 +166,27 @@ func TestParsedCredentialCreationData_Verify(t *testing.T) {
 		{
 			name: "Successful Verification Test",
 			fields: fields{
-				ParsedPublicKeyCredential: ParsedPublicKeyCredential{
-					ParsedCredential: ParsedCredential{
+				ParsedPublicKeyCredential: protocol.ParsedPublicKeyCredential{
+					ParsedCredential: protocol.ParsedCredential{
 						ID:   "6xrtBhJQW6QU4tOaB4rrHaS2Ks0yDDL_q8jDC16DEjZ-VLVf4kCRkvl2xp2D71sTPYns-exsHQHTy3G-zJRK8g",
 						Type: "public-key",
 					},
 					RawID: byteID,
 				},
-				Response: ParsedAttestationResponse{
-					CollectedClientData: CollectedClientData{
-						Type:      CeremonyType("webauthn.create"),
+				Response: protocol.ParsedAttestationResponse{
+					CollectedClientData: protocol.CollectedClientData{
+						Type:      protocol.CeremonyType("webauthn.create"),
 						Challenge: "W8GzFU8pGjhoRbWrLDlamAfq_y4S1CZG1VuoeRLARrE",
 						Origin:    "https://webauthn.io",
 					},
-					AttestationObject: AttestationObject{
+					AttestationObject: protocol.AttestationObject{
 						Format:      "none",
 						RawAuthData: byteAuthData,
-						AuthData: AuthenticatorData{
+						AuthData: protocol.AuthenticatorData{
 							RPIDHash: byteRPIDHash,
 							Counter:  0,
 							Flags:    0x041,
-							AttData: AttestedCredentialData{
+							AttData: protocol.AttestedCredentialData{
 								AAGUID:              make([]byte, 16),
 								CredentialID:        byteID,
 								CredentialPublicKey: byteCredentialPubKey,
@@ -192,16 +194,16 @@ func TestParsedCredentialCreationData_Verify(t *testing.T) {
 						},
 					},
 				},
-				Raw: CredentialCreationResponse{
-					PublicKeyCredential: PublicKeyCredential{
-						Credential: Credential{
+				Raw: protocol.CredentialCreationResponse{
+					PublicKeyCredential: protocol.PublicKeyCredential{
+						Credential: protocol.Credential{
 							Type: "public-key",
 							ID:   "6xrtBhJQW6QU4tOaB4rrHaS2Ks0yDDL_q8jDC16DEjZ-VLVf4kCRkvl2xp2D71sTPYns-exsHQHTy3G-zJRK8g",
 						},
 						RawID: byteID,
 					},
-					AttestationResponse: AuthenticatorAttestationResponse{
-						AuthenticatorResponse: AuthenticatorResponse{
+					AttestationResponse: protocol.AuthenticatorAttestationResponse{
+						AuthenticatorResponse: protocol.AuthenticatorResponse{
 							ClientDataJSON: byteClientDataJSON,
 						},
 						AttestationObject: byteAttObject,
@@ -219,7 +221,7 @@ func TestParsedCredentialCreationData_Verify(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pcc := &ParsedCredentialCreationData{
+			pcc := &protocol.ParsedCredentialCreationData{
 				ParsedPublicKeyCredential: tt.fields.ParsedPublicKeyCredential,
 				Response:                  tt.fields.Response,
 				Raw:                       tt.fields.Raw,
